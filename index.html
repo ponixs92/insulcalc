@@ -1,0 +1,1405 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>InsuCalc</title>
+<!-- Telegram Mini App SDK -->
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #f0f4ff;
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    padding: 20px 16px 40px;
+    display: flex;
+    justify-content: center;
+  }
+
+  .app { width: 100%; max-width: 390px; }
+
+  .header { text-align: center; margin-bottom: 20px; }
+  .header h1 { font-size: 22px; font-weight: 800; color: #1e293b; letter-spacing: -0.5px; }
+  .header p { font-size: 13px; color: #94a3b8; margin-top: 3px; }
+
+  .card {
+    background: white;
+    border-radius: 20px;
+    padding: 18px;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.06);
+    margin-bottom: 12px;
+  }
+
+  .card-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 10px;
+  }
+
+  /* Glucose */
+  .glucose-row { display: flex; gap: 10px; align-items: center; }
+
+  .glucose-field {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 14px;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    background: #f8fafc;
+    transition: border-color 0.15s;
+  }
+
+  .glucose-field:focus-within { border-color: #6366f1; background: white; }
+
+  .glucose-field input {
+    flex: 1; border: none; background: none;
+    font-family: 'Inter', sans-serif;
+    font-size: 20px; font-weight: 800; color: #1e293b;
+    outline: none; width: 60px;
+  }
+
+  .glucose-field span { font-size: 12px; color: #94a3b8; font-weight: 600; }
+
+  .glucose-badge {
+    padding: 6px 12px; border-radius: 20px;
+    font-size: 12px; font-weight: 700;
+  }
+  .badge-ok   { background: #dcfce7; color: #16a34a; }
+  .badge-high { background: #fef3c7; color: #d97706; }
+  .badge-low  { background: #fee2e2; color: #dc2626; }
+
+  /* Food items list */
+  .food-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .food-row {
+    background: #f8fafc;
+    border: 2px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 12px 14px;
+    animation: fadeIn 0.2s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .food-row-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .food-row-emoji { font-size: 22px; flex-shrink: 0; }
+
+  .food-row-info { flex: 1; min-width: 0; }
+  .food-row-name { font-size: 14px; font-weight: 700; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .food-row-sub  { font-size: 11px; color: #6366f1; font-weight: 600; margin-top: 1px; }
+
+  .food-row-delete {
+    width: 28px; height: 28px;
+    border-radius: 50%; border: none;
+    background: #fee2e2; color: #dc2626;
+    font-size: 14px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s;
+  }
+  .food-row-delete:hover { background: #fecaca; }
+
+  .food-row-bottom {
+    margin-top: 10px;
+  }
+
+  .gram-input-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .gram-input {
+    width: 90px;
+    padding: 8px 12px;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    font-family: 'Inter', sans-serif;
+    font-size: 20px; font-weight: 800; color: #1e293b;
+    text-align: center; outline: none; background: white;
+    transition: border-color 0.15s;
+  }
+  .gram-input:focus { border-color: #6366f1; }
+
+  .gram-unit { font-size: 13px; font-weight: 700; color: #94a3b8; }
+
+  .gram-carbs { font-size: 12px; color: #64748b; font-weight: 500; }
+  .gram-carbs b { color: #1e293b; }
+
+  .quick-grams { display: flex; gap: 5px; }
+
+  .quick-g {
+    flex: 1;
+    padding: 6px 2px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    background: white;
+    font-family: 'Inter', sans-serif;
+    font-size: 11px; font-weight: 700; color: #94a3b8;
+    cursor: pointer; transition: all 0.15s; text-align: center;
+  }
+  .quick-g:hover, .quick-g.active { border-color: #6366f1; color: #6366f1; background: #f0f4ff; }
+
+  /* Add food block */
+  .add-food-block { margin-top: 10px; }
+
+  .add-btn {
+    width: 100%;
+    padding: 12px;
+    border: 2px dashed #c7d2fe;
+    border-radius: 12px;
+    background: #f5f3ff;
+    color: #6366f1;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px; font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .add-btn:hover { background: #ede9fe; border-color: #a5b4fc; }
+
+  /* Search inside add block */
+  .search-panel {
+    display: none;
+    margin-top: 10px;
+  }
+  .search-panel.open { display: block; }
+
+  .search-wrap { position: relative; }
+
+  .search-input {
+    width: 100%;
+    padding: 11px 16px 11px 40px;
+    border: 2px solid #6366f1;
+    border-radius: 12px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px; font-weight: 500; color: #1e293b;
+    outline: none; background: white;
+  }
+  .search-input::placeholder { color: #cbd5e1; }
+  .search-icon { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); font-size: 15px; pointer-events: none; }
+
+  .dropdown {
+    background: white;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    margin-top: 6px;
+    overflow: hidden;
+    display: none;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+    max-height: 240px;
+    overflow-y: auto;
+  }
+  .dropdown.open { display: block; }
+
+  .food-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 11px 14px;
+    cursor: pointer;
+    border-bottom: 1px solid #f1f5f9;
+    transition: background 0.1s;
+  }
+  .food-item:last-child { border-bottom: none; }
+  .food-item:hover { background: #f8fafc; }
+  .food-item-emoji { font-size: 20px; }
+  .food-item-name { font-size: 14px; font-weight: 600; color: #1e293b; }
+  .food-item-carbs { font-size: 11px; color: #94a3b8; margin-top: 1px; }
+
+  /* Result */
+  .result-card {
+    background: linear-gradient(135deg, #6366f1, #818cf8);
+    border-radius: 20px;
+    padding: 24px 20px;
+    text-align: center;
+    color: white;
+    box-shadow: 0 8px 24px rgba(99,102,241,0.3);
+    display: none;
+  }
+  .result-card.show { display: block; }
+
+  .result-label { font-size: 12px; font-weight: 700; opacity: 0.75; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
+  .result-dose { font-size: 72px; font-weight: 800; line-height: 1; letter-spacing: -3px; }
+  .result-unit { font-size: 18px; font-weight: 700; opacity: 0.8; margin-top: 2px; }
+
+  .result-kcal {
+    display: inline-block;
+    margin-top: 10px;
+    background: rgba(255,255,255,0.18);
+    border-radius: 20px;
+    padding: 5px 16px;
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  .result-breakdown {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255,255,255,0.2);
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .breakdown-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    font-weight: 500;
+    opacity: 0.85;
+  }
+  .breakdown-row b { font-weight: 700; opacity: 1; }
+
+  .total-row {
+    margin-top: 4px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255,255,255,0.2);
+    font-size: 13px;
+    font-weight: 700;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .placeholder {
+    text-align: center;
+    padding: 8px 0 4px;
+    color: #cbd5e1;
+    font-size: 13px; font-weight: 500;
+  }
+  .placeholder-icon { font-size: 30px; margin-bottom: 6px; }
+
+  /* Bottom nav */
+  .bottom-nav {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: white;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    padding: 8px 0 20px;
+    z-index: 50;
+  }
+
+  .nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    cursor: pointer;
+    padding: 4px 0;
+    border: none;
+    background: none;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .nav-icon { font-size: 20px; }
+  .nav-label { font-size: 10px; font-weight: 700; color: #94a3b8; }
+  .nav-item.active .nav-label { color: #6366f1; }
+
+  /* Screen system */
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* Profile screen */
+  .profile-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .profile-row:last-child { border-bottom: none; }
+  .profile-row-left { flex: 1; }
+  .profile-row-label { font-size: 14px; font-weight: 600; color: #1e293b; }
+  .profile-row-hint  { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+
+  .profile-input {
+    width: 90px;
+    padding: 7px 10px;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    font-family: 'Inter', sans-serif;
+    font-size: 15px; font-weight: 700;
+    color: #1e293b;
+    text-align: center;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .profile-input:focus { border-color: #6366f1; }
+
+  .profile-select {
+    padding: 7px 10px;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px; font-weight: 700;
+    color: #1e293b;
+    outline: none;
+    background: white;
+    cursor: pointer;
+  }
+  .profile-select:focus { border-color: #6366f1; }
+
+  .save-btn {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, #6366f1, #818cf8);
+    border: none; border-radius: 14px;
+    color: white; font-family: 'Inter', sans-serif;
+    font-size: 15px; font-weight: 800;
+    cursor: pointer; margin-top: 4px;
+    box-shadow: 0 4px 16px rgba(99,102,241,0.3);
+    transition: opacity 0.15s;
+  }
+  .save-btn:active { opacity: 0.85; }
+
+  .saved-toast {
+    position: fixed;
+    bottom: 90px; left: 50%;
+    transform: translateX(-50%);
+    background: #22c55e;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 13px; font-weight: 700;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+    z-index: 100;
+    white-space: nowrap;
+  }
+  .saved-toast.show { opacity: 1; }
+
+  /* Onboarding overlay */
+  .onboarding {
+    position: fixed;
+    inset: 0;
+    background: white;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 24px;
+    text-align: center;
+  }
+
+  .onboarding.hidden { display: none; }
+
+  .onboarding-icon { font-size: 64px; margin-bottom: 16px; }
+  .onboarding h2 { font-size: 22px; font-weight: 800; color: #1e293b; margin-bottom: 8px; }
+  .onboarding p  { font-size: 14px; color: #64748b; line-height: 1.6; margin-bottom: 28px; }
+
+  .onboarding .card {
+    width: 100%;
+    text-align: left;
+    margin-bottom: 16px;
+  }
+
+  .onboarding-step {
+    font-size: 11px; font-weight: 700;
+    color: #6366f1; text-transform: uppercase;
+    letter-spacing: 0.8px; margin-bottom: 16px;
+  }
+
+  .p-unit {
+    font-size: 12px; font-weight: 700; color: #94a3b8; white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+
+<!-- ОНБОРДИНГ — 3-шаговый мастер -->
+<div class="onboarding" id="onboarding">
+
+  <!-- ШАГ 1: Личные данные -->
+  <div class="ob-step" id="ob-step-1">
+    <div class="onboarding-icon">🧬</div>
+    <h2>Добро пожаловать!</h2>
+    <p>Заполните данные — коэффициенты инсулина рассчитаются автоматически</p>
+    <div class="card" style="width:100%;text-align:left;margin-bottom:16px;">
+      <div class="onboarding-step">Шаг 1 из 3 · Личные данные</div>
+      <div class="profile-row">
+        <div class="profile-row-left">
+          <div class="profile-row-label">Возраст</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <input type="number" class="profile-input" id="ob-age" value="30" min="5" max="90">
+          <span class="p-unit">лет</span>
+        </div>
+      </div>
+      <div class="profile-row">
+        <div class="profile-row-left">
+          <div class="profile-row-label">Вес</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <input type="number" class="profile-input" id="ob-weight" value="70" min="20" max="200">
+          <span class="p-unit">кг</span>
+        </div>
+      </div>
+      <div class="profile-row">
+        <div class="profile-row-left">
+          <div class="profile-row-label">Тип диабета</div>
+        </div>
+        <select class="profile-select" id="ob-dtype">
+          <option value="1">1 тип</option>
+          <option value="2">2 тип</option>
+          <option value="lada">LADA</option>
+          <option value="mody">MODY</option>
+        </select>
+      </div>
+      <div class="profile-row">
+        <div class="profile-row-left">
+          <div class="profile-row-label">Стаж болезни</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <input type="number" class="profile-input" id="ob-years" value="3" min="0" max="60">
+          <span class="p-unit">лет</span>
+        </div>
+      </div>
+      <div class="profile-row" style="border-bottom:none;">
+        <div class="profile-row-left">
+          <div class="profile-row-label">Пол</div>
+        </div>
+        <select class="profile-select" id="ob-sex">
+          <option value="m">Мужской</option>
+          <option value="f">Женский</option>
+        </select>
+      </div>
+    </div>
+    <button class="save-btn" onclick="goStep(2)">Далее →</button>
+  </div>
+
+  <!-- ШАГ 2: Дозы инсулина -->
+  <div class="ob-step" id="ob-step-2" style="display:none;">
+    <div class="onboarding-icon">💊</div>
+    <h2>Дозы инсулина</h2>
+    <p>Укажите текущие дозы — по ним рассчитаются ваши коэффициенты ICR и ISF</p>
+    <div class="card" style="width:100%;text-align:left;margin-bottom:16px;">
+      <div class="onboarding-step">Шаг 2 из 3 · Инсулинотерапия</div>
+      <div class="profile-row">
+        <div class="profile-row-left">
+          <div class="profile-row-label">Суточная доза (TDD)</div>
+          <div class="profile-row-hint">Все инъекции за сутки</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <input type="number" class="profile-input" id="ob-tdd" value="30" min="2" max="200" oninput="previewCalc()">
+          <span class="p-unit">ед.</span>
+        </div>
+      </div>
+      <div class="profile-row">
+        <div class="profile-row-left">
+          <div class="profile-row-label">Базальный инсулин</div>
+          <div class="profile-row-hint">Лантус, Левемир, Туджео...</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <input type="number" class="profile-input" id="ob-basal" value="12" min="0" max="100">
+          <span class="p-unit">ед.</span>
+        </div>
+      </div>
+      <div class="profile-row">
+        <div class="profile-row-left">
+          <div class="profile-row-label">Короткий инсулин</div>
+          <div class="profile-row-hint">Болюсный инсулин</div>
+        </div>
+        <select class="profile-select" id="ob-insulin2">
+          <option>Новорапид</option>
+          <option>Хумалог</option>
+          <option>Апидра</option>
+          <option>Актрапид</option>
+          <option>Фиасп</option>
+          <option>Лизпро</option>
+        </select>
+      </div>
+      <div class="profile-row" style="border-bottom:none;">
+        <div class="profile-row-left">
+          <div class="profile-row-label">Целевая глюкоза</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <input type="number" class="profile-input" id="ob-target2" value="5.5" step="0.1" min="4" max="8">
+          <span class="p-unit">ммоль/л</span>
+        </div>
+      </div>
+    </div>
+    <div id="calc-preview" style="margin-bottom:16px;padding:14px;background:#f0f4ff;border-radius:12px;font-size:13px;color:#4338ca;font-weight:600;line-height:2;">
+      🔢 Введите суточную дозу для расчёта
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="save-btn" style="background:#e2e8f0;color:#64748b;box-shadow:none;flex:1;" onclick="goStep(1)">← Назад</button>
+      <button class="save-btn" style="flex:2;" onclick="goStep(3)">Далее →</button>
+    </div>
+  </div>
+
+  <!-- ШАГ 3: Подтверждение коэффициентов -->
+  <div class="ob-step" id="ob-step-3" style="display:none;">
+    <div class="onboarding-icon">✅</div>
+    <h2>Ваши коэффициенты</h2>
+    <p>Рассчитаны автоматически. При необходимости скорректируйте с врачом</p>
+    <div class="card" style="width:100%;text-align:left;margin-bottom:16px;">
+      <div class="onboarding-step">Шаг 3 из 3 · Подтверждение</div>
+      <div class="profile-row">
+        <div class="profile-row-left">
+          <div class="profile-row-label">Углеводный коэф. ICR</div>
+          <div class="profile-row-hint">Формула: 500 ÷ суточная доза ÷ 12 (ХЕ/ед.)</div>
+        </div>
+        <input type="number" class="profile-input" id="ob-icr-final" step="0.1" min="0.1" max="5">
+      </div>
+      <div class="profile-row" style="border-bottom:none;">
+        <div class="profile-row-left">
+          <div class="profile-row-label">Чувствительность ISF</div>
+          <div class="profile-row-hint">Формула: 100 ÷ суточная доза</div>
+        </div>
+        <input type="number" class="profile-input" id="ob-isf-final" step="0.1" min="0.5" max="10">
+      </div>
+    </div>
+    <div style="background:#fef3c7;border:1px solid #fbbf24;border-radius:12px;padding:12px;margin-bottom:16px;font-size:12px;color:#92400e;line-height:1.6;text-align:left;">
+      ⚠️ <b>Важно:</b> Коэффициенты — стартовая точка. Точные значения подбирают совместно с эндокринологом на основе дневника глюкозы.
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="save-btn" style="background:#e2e8f0;color:#64748b;box-shadow:none;flex:1;" onclick="goStep(2)">← Назад</button>
+      <button class="save-btn" style="flex:2;" onclick="saveOnboarding()">Начать работу →</button>
+    </div>
+  </div>
+
+</div>
+<!-- ТОСТ -->
+<div class="saved-toast" id="toast">✓ Сохранено</div>
+
+<div class="app" id="main-app">
+
+  <!-- ЭКРАН: РАСЧЁТ -->
+  <div class="screen active" id="screen-calc">
+    <div class="header">
+      <h1>💉 InsuCalc</h1>
+      <p id="header-sub">Расчёт дозы инсулина</p>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Глюкоза сейчас</div>
+      <div class="glucose-row">
+        <div class="glucose-field">
+          <input type="number" id="glucose" value="7.4" step="0.1" min="1" max="30" oninput="updateBadge(); recalc();">
+          <span>ммоль/л</span>
+        </div>
+        <div class="glucose-badge badge-ok" id="g-badge">Норма</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Приём пищи</div>
+      <div class="food-list" id="food-list"></div>
+      <div class="add-food-block">
+        <button class="add-btn" id="add-btn" onclick="toggleSearch()">
+          <span>＋</span> Добавить продукт
+        </button>
+        <div class="search-panel" id="search-panel">
+          <div class="search-wrap">
+            <span class="search-icon">🔍</span>
+            <input class="search-input" id="search-input" type="text"
+              placeholder="Поиск: гречка, банан..."
+              oninput="onSearch(this.value)"
+              autocomplete="off">
+          </div>
+          <div class="dropdown" id="dropdown"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="result-card" id="result-card" style="margin-bottom:80px;">
+      <div class="placeholder">
+        <div class="placeholder-icon">🍽</div>
+        Добавьте продукт
+      </div>
+    </div>
+  </div>
+
+  <!-- ЭКРАН: ПРОФИЛЬ -->
+  <div class="screen" id="screen-profile">
+    <div class="header">
+      <h1>⚙️ Профиль</h1>
+      <p>Все настройки можно изменить в любое время</p>
+    </div>
+
+    <!-- Личные данные -->
+    <div class="card">
+      <div class="card-label">🧬 Личные данные</div>
+      <div class="profile-row">
+        <div class="profile-row-left">
+          <div class="profile-row-label">Возраст</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <input type="number" class="profile-input" id="p-age" value="30" min="5" max="90">
+          <span class="p-unit">лет</span>
+        </div>
+      </div>
+      <div class="profile-row">
+        <div class="profile-row-left">
+          <div class="profile-row-label">Вес</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <input type="number" class="profile-input" id="p-weight" value="70" min="20" max="200">
+          <span class="p-unit">кг</span>
+        </div>
+      </div>
+      <div class="profile-row">
+        <div class="profile-row-left">
+          <div class="profile-row-label">Тип диабета</div>
+        </div>
+        <select class="profile-select" id="p-dtype">
+          <option value="1">1 тип</option>
+          <option value="2">2 тип</option>
+          <option value="lada">LADA</option>
+          <option value="mody">MODY</option>
+        </select>
+      </div>
+      <div class="profile-row">
+        <div class="profile-row-left">
+          <div class="profile-row-label">Стаж болезни</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <input type="number" class="profile-input" id="p-years" value="3" min="0" max="60">
+          <span class="p-unit">лет</span>
+        </div>
+      </div>
+      <div class="profile-row" style="border-bottom:none;">
+        <div class="profile-row-left">
+          <div class="profile-row-label">Пол</div>
+        </div>
+        <select class="profile-select" id="p-sex">
+          <option value="m">Мужской</option>
+          <option value="f">Женский</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Дозы инсулина -->
+    <div class="card">
+      <div class="card-label">💊 Инсулинотерапия</div>
+      <div class="profile-row">
+        <div class="profile-row-left">
+          <div class="profile-row-label">Суточная доза (TDD)</div>
+          <div class="profile-row-hint">Все инъекции за сутки</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <input type="number" class="profile-input" id="p-tdd" value="30" min="2" max="200" oninput="profilePreviewCalc()">
+          <span class="p-unit">ед.</span>
+        </div>
+      </div>
+      <div class="profile-row">
+        <div class="profile-row-left">
+          <div class="profile-row-label">Базальный инсулин</div>
+          <div class="profile-row-hint">Лантус, Левемир, Туджео...</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <input type="number" class="profile-input" id="p-basal" value="12" min="0" max="100">
+          <span class="p-unit">ед.</span>
+        </div>
+      </div>
+      <div class="profile-row">
+        <div class="profile-row-left">
+          <div class="profile-row-label">Короткий инсулин</div>
+        </div>
+        <select class="profile-select" id="p-insulin">
+          <option>Новорапид</option>
+          <option>Хумалог</option>
+          <option>Апидра</option>
+          <option>Актрапид</option>
+          <option>Фиасп</option>
+          <option>Лизпро</option>
+        </select>
+      </div>
+      <div class="profile-row" style="border-bottom:none;">
+        <div class="profile-row-left">
+          <div class="profile-row-label">Целевая глюкоза</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <input type="number" class="profile-input" id="p-target" value="5.5" step="0.1" min="4" max="8">
+          <span class="p-unit">ммоль/л</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Авторасчёт коэффициентов -->
+    <div class="card">
+      <div class="card-label">🔢 Коэффициенты (авторасчёт)</div>
+      <div id="profile-calc-preview" style="padding:12px;background:#f0f4ff;border-radius:12px;font-size:13px;color:#4338ca;font-weight:600;line-height:2;margin-bottom:14px;">
+        Введите суточную дозу выше для расчёта
+      </div>
+      <div class="profile-row">
+        <div class="profile-row-left">
+          <div class="profile-row-label">ICR (углеводный коэф.)</div>
+          <div class="profile-row-hint">Сколько ХЕ покрывает 1 ед. инсулина</div>
+        </div>
+        <input type="number" class="profile-input" id="p-icr" value="1.4" step="0.05" min="0.1" max="5" oninput="updatePerXe()">
+      </div>
+      <div class="profile-row" style="border-bottom:none;">
+        <div class="profile-row-left">
+          <div class="profile-row-label">ISF (чувствительность)</div>
+          <div class="profile-row-hint">Можно скорректировать вручную</div>
+        </div>
+        <input type="number" class="profile-input" id="p-isf" value="2.5" step="0.1" min="0.5" max="10">
+      </div>
+      <button class="save-btn" onclick="profileRecalcCoeffs()" style="margin-top:10px;background:white;color:#6366f1;border:2px solid #6366f1;box-shadow:none;">
+        🔄 Пересчитать ICR и ISF по дозе
+      </button>
+    </div>
+
+    <!-- Прямой ввод ед/ХЕ -->
+    <div class="card">
+      <div class="card-label">💉 Сколько инсулина на 1 ХЕ</div>
+      <div class="profile-row" style="border-bottom:none;">
+        <div class="profile-row-left">
+          <div class="profile-row-label">На 1 ХЕ нужно</div>
+          <div class="profile-row-hint">Установите напрямую — пересчитает ICR автоматически</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <input type="number" class="profile-input" id="p-per-xe" value="1.0" step="0.05" min="0.1" max="10" oninput="updateIcrFromPerXe()" style="font-size:22px;font-weight:900;color:#6366f1;width:80px;">
+          <span class="p-unit">ед./ХЕ</span>
+        </div>
+      </div>
+      <div style="margin-top:10px;padding:10px 14px;background:#f5f3ff;border-radius:10px;font-size:13px;color:#7c3aed;font-weight:600;" id="per-xe-result">
+        ICR будет пересчитан автоматически
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:80px;">
+      <div style="background:#fef3c7;border:1px solid #fbbf24;border-radius:10px;padding:10px;font-size:12px;color:#92400e;line-height:1.6;margin-bottom:14px;">
+        ⚠️ Точные коэффициенты подбираются совместно с эндокринологом
+      </div>
+      <button class="save-btn" onclick="saveProfile()">💾 Сохранить все настройки</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- НИЖНЯЯ НАВИГАЦИЯ -->
+<div class="bottom-nav">
+  <button class="nav-item active" id="nav-calc" onclick="switchScreen('calc')">
+    <span class="nav-icon">🍽</span>
+    <span class="nav-label">Расчёт</span>
+  </button>
+  <button class="nav-item" id="nav-profile" onclick="switchScreen('profile')">
+    <span class="nav-icon">⚙️</span>
+    <span class="nav-label">Профиль</span>
+  </button>
+</div>
+
+<script>
+// ── Telegram SDK ──────────────────────────────────────────────
+const tg = window.Telegram?.WebApp;
+if (tg) { tg.ready(); tg.expand(); }
+
+// ── Профиль (из localStorage) ─────────────────────────────────
+let profile = {
+  icr: 1.4,
+  isf: 2.5,
+  target: 5.5,
+  insulin: 'Новорапид'
+};
+
+function loadProfile() {
+  const saved = localStorage.getItem('insulcalc_profile');
+  if (saved) {
+    profile = JSON.parse(saved);
+    return true; // профиль уже есть
+  }
+  return false; // первый запуск
+}
+
+function applyProfileToForm() {
+  document.getElementById('p-icr').value    = profile.icr;
+  document.getElementById('p-isf').value    = profile.isf;
+  document.getElementById('p-target').value = profile.target;
+  document.getElementById('p-tdd').value    = profile.tdd    || 30;
+  document.getElementById('p-basal').value  = profile.basal  || 12;
+  document.getElementById('p-age').value    = profile.age    || 30;
+  document.getElementById('p-weight').value = profile.weight || 70;
+  document.getElementById('p-years').value  = profile.years  || 3;
+
+  const selI = document.getElementById('p-insulin');
+  for (let o of selI.options) if (o.text === profile.insulin) o.selected = true;
+  const selD = document.getElementById('p-dtype');
+  if (profile.dtype) for (let o of selD.options) if (o.value === profile.dtype) o.selected = true;
+  const selS = document.getElementById('p-sex');
+  if (profile.sex) for (let o of selS.options) if (o.value === profile.sex) o.selected = true;
+
+  profilePreviewCalc();
+  updatePerXe();
+  const pxEl = document.getElementById('p-per-xe');
+  if (pxEl) pxEl.value = Math.round((1 / profile.icr) * 100) / 100;
+
+  document.getElementById('header-sub').textContent =
+    `ICR ${profile.icr} · ISF ${profile.isf} · Цель ${profile.target} · ${profile.insulin}`;
+}
+
+function profilePreviewCalc() {
+  const tdd = parseFloat(document.getElementById('p-tdd').value) || 30;
+  const icr = Math.round((500 / tdd / 12) * 100) / 100;
+  const isf = Math.round((100 / tdd) * 10) / 10;
+  const el = document.getElementById('profile-calc-preview');
+  const per_xe = Math.round((1 / icr) * 100) / 100;
+  if (el) el.innerHTML =
+    `📊 По суточной дозе ${tdd} ед.:<br>
+     <b>ICR = 500 ÷ ${tdd} ÷ 12 = ${icr}</b> ХЕ на 1 ед.<br>
+     <span style="color:#7c3aed">➜ На 1 ХЕ нужно <b>${per_xe} ед.</b> инсулина</span><br>
+     <b>ISF = 100 ÷ ${tdd} = ${isf}</b> ммоль/л на 1 ед.`;
+}
+
+function profileRecalcCoeffs() {
+  const tdd = parseFloat(document.getElementById('p-tdd').value) || 30;
+  document.getElementById('p-icr').value = Math.round((500 / tdd / 12) * 100) / 100;
+  document.getElementById('p-isf').value = Math.round((100 / tdd) * 10) / 10;
+  showToast('✓ ICR и ISF пересчитаны');
+}
+
+function goStep(n) {
+  document.querySelectorAll('.ob-step').forEach(s => s.style.display = 'none');
+  document.getElementById('ob-step-' + n).style.display = 'block';
+  if (n === 2) previewCalc();
+  if (n === 3) computeCoeffs();
+  document.getElementById('onboarding').scrollTop = 0;
+}
+
+function previewCalc() {
+  const tdd = parseFloat(document.getElementById('ob-tdd').value) || 30;
+  const icr = Math.round((500 / tdd / 12) * 100) / 100;
+  const isf = Math.round((100 / tdd) * 10) / 10;
+  const per_xe = Math.round((1 / icr) * 100) / 100;
+  document.getElementById('calc-preview').innerHTML =
+    `📊 Предварительный расчёт:<br>
+     <b>ICR = 500 ÷ ${tdd} ÷ 12 = ${icr}</b> ХЕ на 1 ед.<br>
+     <span style="color:#7c3aed">➜ На 1 ХЕ нужно <b>${per_xe} ед.</b> инсулина</span><br>
+     <b>ISF = 100 ÷ ${tdd} = ${isf}</b> ммоль/л на 1 ед.`;
+}
+
+function computeCoeffs() {
+  const tdd = parseFloat(document.getElementById('ob-tdd').value) || 30;
+  const icr = Math.round((500 / tdd / 12) * 100) / 100;
+  const isf = Math.round((100 / tdd) * 10) / 10;
+  document.getElementById('ob-icr-final').value = icr;
+  document.getElementById('ob-isf-final').value = isf;
+}
+
+function saveOnboarding() {
+  profile.icr     = parseFloat(document.getElementById('ob-icr-final').value) || 1.0;
+  profile.isf     = parseFloat(document.getElementById('ob-isf-final').value) || 2.5;
+  profile.target  = parseFloat(document.getElementById('ob-target2').value)   || 5.5;
+  profile.insulin = document.getElementById('ob-insulin2').value;
+  profile.age     = parseInt(document.getElementById('ob-age').value)          || 30;
+  profile.weight  = parseInt(document.getElementById('ob-weight').value)       || 70;
+  profile.dtype   = document.getElementById('ob-dtype').value;
+  profile.years   = parseInt(document.getElementById('ob-years').value)        || 3;
+  localStorage.setItem('insulcalc_profile', JSON.stringify(profile));
+  document.getElementById('onboarding').classList.add('hidden');
+  applyProfileToForm();
+}
+
+function updatePerXe() {
+  const icr = parseFloat(document.getElementById('p-icr').value) || 1.4;
+  const perXe = Math.round((1 / icr) * 100) / 100;
+  // sync to per-xe input
+  const pxEl = document.getElementById('p-per-xe');
+  if (pxEl) pxEl.value = perXe;
+  const res = document.getElementById('per-xe-result');
+  if (res) res.textContent = `1 ХЕ = ${perXe} ед. · ICR = ${icr} ХЕ/ед.`;
+}
+
+function updateIcrFromPerXe() {
+  const perXe = parseFloat(document.getElementById('p-per-xe').value) || 1.0;
+  const icr = Math.round((1 / perXe) * 100) / 100;
+  const icrEl = document.getElementById('p-icr');
+  if (icrEl) icrEl.value = icr;
+  const res = document.getElementById('per-xe-result');
+  if (res) res.textContent = `1 ХЕ = ${perXe} ед. · ICR = ${icr} ХЕ/ед.`;
+}
+
+function saveProfile() {
+  // sync from per-xe if changed directly
+  const perXeVal = parseFloat(document.getElementById('p-per-xe').value);
+  if (perXeVal && perXeVal > 0) {
+    profile.icr = Math.round((1 / perXeVal) * 100) / 100;
+    document.getElementById('p-icr').value = profile.icr;
+  } else {
+    profile.icr = parseFloat(document.getElementById('p-icr').value) || 1.0;
+  }
+  profile.isf     = parseFloat(document.getElementById('p-isf').value)    || 2.5;
+  profile.target  = parseFloat(document.getElementById('p-target').value) || 5.5;
+  profile.insulin = document.getElementById('p-insulin').value;
+  profile.tdd     = parseFloat(document.getElementById('p-tdd').value)    || 30;
+  profile.basal   = parseFloat(document.getElementById('p-basal').value)  || 12;
+  profile.age     = parseInt(document.getElementById('p-age').value)      || 30;
+  profile.weight  = parseInt(document.getElementById('p-weight').value)   || 70;
+  profile.years   = parseInt(document.getElementById('p-years').value)    || 3;
+  profile.dtype   = document.getElementById('p-dtype').value;
+  profile.sex     = document.getElementById('p-sex').value;
+  localStorage.setItem('insulcalc_profile', JSON.stringify(profile));
+  applyProfileToForm();
+  recalc();
+  showToast('✓ Профиль сохранён');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ── Навигация ─────────────────────────────────────────────────
+function switchScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  document.getElementById('nav-' + name).classList.add('active');
+}
+
+// ── Продукты ──────────────────────────────────────────────────
+// name, emoji, carbs per 100g, kcal per 100g
+const foods = [
+  // КРУПЫ И КАШИ
+  { name:'Гречка варёная',          emoji:'🌾', carbs:21,  kcal:132  },
+  { name:'Гречка сухая',            emoji:'🌾', carbs:68,  kcal:313  },
+  { name:'Рис варёный белый',       emoji:'🍚', carbs:28,  kcal:130  },
+  { name:'Рис варёный бурый',       emoji:'🍚', carbs:23,  kcal:111  },
+  { name:'Рис сухой',               emoji:'🍚', carbs:77,  kcal:344  },
+  { name:'Овсянка варёная',         emoji:'🥣', carbs:15,  kcal:88   },
+  { name:'Овсянка быстрая',         emoji:'🥣', carbs:67,  kcal:366  },
+  { name:'Перловка варёная',        emoji:'🌾', carbs:22,  kcal:109  },
+  { name:'Пшёнка варёная',          emoji:'🌾', carbs:26,  kcal:119  },
+  { name:'Манная каша',             emoji:'🥣', carbs:28,  kcal:120  },
+  { name:'Манная крупа сухая',      emoji:'🥣', carbs:73,  kcal:328  },
+  { name:'Кукурузная каша',         emoji:'🌽', carbs:21,  kcal:86   },
+  { name:'Булгур варёный',          emoji:'🌾', carbs:19,  kcal:83   },
+  { name:'Киноа варёная',           emoji:'🌾', carbs:22,  kcal:120  },
+  { name:'Кускус варёный',          emoji:'🌾', carbs:23,  kcal:112  },
+
+  // МАКАРОНЫ И ХЛЕБ
+  { name:'Макароны варёные',        emoji:'🍝', carbs:31,  kcal:157  },
+  { name:'Макароны сухие',          emoji:'🍝', carbs:72,  kcal:352  },
+  { name:'Лапша рисовая варёная',   emoji:'🍜', carbs:26,  kcal:109  },
+  { name:'Хлеб белый',              emoji:'🍞', carbs:49,  kcal:242  },
+  { name:'Хлеб ржаной',             emoji:'🥖', carbs:40,  kcal:174  },
+  { name:'Хлеб бородинский',        emoji:'🥖', carbs:40,  kcal:207  },
+  { name:'Хлеб цельнозерновой',     emoji:'🥖', carbs:43,  kcal:247  },
+  { name:'Хлеб Дарницкий',          emoji:'🥖', carbs:42,  kcal:206  },
+  { name:'Батон нарезной',          emoji:'🍞', carbs:51,  kcal:262  },
+  { name:'Булочка',                 emoji:'🥐', carbs:55,  kcal:316  },
+  { name:'Круассан',                emoji:'🥐', carbs:46,  kcal:406  },
+  { name:'Лаваш тонкий',            emoji:'🫓', carbs:57,  kcal:277  },
+  { name:'Питта',                   emoji:'🫓', carbs:55,  kcal:275  },
+  { name:'Хлебцы рисовые',          emoji:'🫓', carbs:81,  kcal:390  },
+  { name:'Хлебцы ржаные',           emoji:'🫓', carbs:70,  kcal:336  },
+  { name:'Сухари пшеничные',        emoji:'🍞', carbs:72,  kcal:347  },
+
+  // КАРТОФЕЛЬ И ОВОЩИ
+  { name:'Картофель варёный',       emoji:'🥔', carbs:17,  kcal:80   },
+  { name:'Картофель жареный',       emoji:'🍟', carbs:26,  kcal:192  },
+  { name:'Картофель тушёный',       emoji:'🥔', carbs:16,  kcal:75   },
+  { name:'Картофельное пюре',       emoji:'🥔', carbs:14,  kcal:90   },
+  { name:'Картофель фри',           emoji:'🍟', carbs:33,  kcal:312  },
+  { name:'Чипсы картофельные',      emoji:'🍟', carbs:53,  kcal:536  },
+  { name:'Кукуруза варёная',        emoji:'🌽', carbs:22,  kcal:123  },
+  { name:'Кукуруза консервированная',emoji:'🌽',carbs:14,  kcal:78   },
+  { name:'Свёкла варёная',          emoji:'🫚', carbs:10,  kcal:49   },
+  { name:'Морковь варёная',         emoji:'🥕', carbs:8,   kcal:35   },
+  { name:'Морковь сырая',           emoji:'🥕', carbs:7,   kcal:32   },
+  { name:'Тыква',                   emoji:'🎃', carbs:5,   kcal:22   },
+  { name:'Горох варёный',           emoji:'🟢', carbs:14,  kcal:81   },
+  { name:'Фасоль варёная',          emoji:'🫘', carbs:21,  kcal:123  },
+  { name:'Чечевица варёная',        emoji:'🫘', carbs:20,  kcal:116  },
+  { name:'Нут варёный',             emoji:'🫘', carbs:27,  kcal:164  },
+
+  // ФРУКТЫ
+  { name:'Яблоко',                  emoji:'🍎', carbs:14,  kcal:52   },
+  { name:'Банан',                   emoji:'🍌', carbs:23,  kcal:96   },
+  { name:'Банан сушёный',           emoji:'🍌', carbs:89,  kcal:346  },
+  { name:'Виноград',                emoji:'🍇', carbs:17,  kcal:69   },
+  { name:'Апельсин',                emoji:'🍊', carbs:12,  kcal:47   },
+  { name:'Мандарин',                emoji:'🍊', carbs:11,  kcal:38   },
+  { name:'Грейпфрут',               emoji:'🍊', carbs:7,   kcal:35   },
+  { name:'Груша',                   emoji:'🍐', carbs:11,  kcal:42   },
+  { name:'Персик',                  emoji:'🍑', carbs:10,  kcal:39   },
+  { name:'Абрикос',                 emoji:'🍑', carbs:9,   kcal:44   },
+  { name:'Слива',                   emoji:'🍒', carbs:10,  kcal:46   },
+  { name:'Вишня',                   emoji:'🍒', carbs:12,  kcal:52   },
+  { name:'Черешня',                 emoji:'🍒', carbs:13,  kcal:50   },
+  { name:'Клубника',                emoji:'🍓', carbs:8,   kcal:32   },
+  { name:'Малина',                  emoji:'🍓', carbs:12,  kcal:46   },
+  { name:'Черника',                 emoji:'🫐', carbs:14,  kcal:44   },
+  { name:'Смородина чёрная',        emoji:'🫐', carbs:13,  kcal:44   },
+  { name:'Арбуз',                   emoji:'🍉', carbs:8,   kcal:30   },
+  { name:'Дыня',                    emoji:'🍈', carbs:9,   kcal:35   },
+  { name:'Ананас',                  emoji:'🍍', carbs:13,  kcal:50   },
+  { name:'Манго',                   emoji:'🥭', carbs:15,  kcal:60   },
+  { name:'Хурма',                   emoji:'🍊', carbs:17,  kcal:66   },
+  { name:'Киви',                    emoji:'🥝', carbs:15,  kcal:61   },
+  { name:'Инжир свежий',            emoji:'🍑', carbs:19,  kcal:74   },
+  { name:'Финики',                  emoji:'🌴', carbs:75,  kcal:282  },
+  { name:'Курага',                  emoji:'🍑', carbs:51,  kcal:215  },
+  { name:'Изюм',                    emoji:'🍇', carbs:79,  kcal:299  },
+  { name:'Чернослив',               emoji:'🍒', carbs:57,  kcal:231  },
+
+  // МОЛОЧНЫЕ ПРОДУКТЫ
+  { name:'Молоко 1.5%',             emoji:'🥛', carbs:4.7, kcal:44   },
+  { name:'Молоко 2.5%',             emoji:'🥛', carbs:4.7, kcal:52   },
+  { name:'Молоко 3.2%',             emoji:'🥛', carbs:4.7, kcal:60   },
+  { name:'Кефир 1%',                emoji:'🫙', carbs:4,   kcal:40   },
+  { name:'Кефир 2.5%',              emoji:'🫙', carbs:4,   kcal:53   },
+  { name:'Ряженка',                 emoji:'🥛', carbs:4.1, kcal:85   },
+  { name:'Простокваша',             emoji:'🥛', carbs:4,   kcal:58   },
+  { name:'Йогурт натуральный',      emoji:'🥛', carbs:6,   kcal:68   },
+  { name:'Йогурт фруктовый',        emoji:'🥛', carbs:15,  kcal:100  },
+  { name:'Творог 0%',               emoji:'🧀', carbs:3.3, kcal:71   },
+  { name:'Творог 5%',               emoji:'🧀', carbs:3,   kcal:121  },
+  { name:'Творог 9%',               emoji:'🧀', carbs:2.8, kcal:159  },
+  { name:'Сметана 15%',             emoji:'🧈', carbs:3.1, kcal:158  },
+  { name:'Сметана 20%',             emoji:'🧈', carbs:3,   kcal:206  },
+  { name:'Сливки 10%',              emoji:'🥛', carbs:4,   kcal:119  },
+  { name:'Мороженое пломбир',       emoji:'🍨', carbs:20,  kcal:226  },
+  { name:'Мороженое молочное',      emoji:'🍦', carbs:18,  kcal:126  },
+  { name:'Сырок глазированный',     emoji:'🧁', carbs:30,  kcal:315  },
+
+  // НАПИТКИ
+  { name:'Сок апельсиновый',        emoji:'🥤', carbs:10,  kcal:45   },
+  { name:'Сок яблочный',            emoji:'🥤', carbs:10,  kcal:42   },
+  { name:'Сок виноградный',         emoji:'🥤', carbs:14,  kcal:54   },
+  { name:'Сок томатный',            emoji:'🍅', carbs:3.5, kcal:18   },
+  { name:'Сок морковный',           emoji:'🥕', carbs:9,   kcal:40   },
+  { name:'Кола / Пепси',            emoji:'🥤', carbs:10.6,kcal:42   },
+  { name:'Лимонад',                 emoji:'🍋', carbs:9,   kcal:38   },
+  { name:'Компот из сухофруктов',   emoji:'🍵', carbs:14,  kcal:60   },
+  { name:'Квас',                    emoji:'🥤', carbs:5,   kcal:27   },
+  { name:'Чай с сахаром (1 ч.л.)',  emoji:'☕', carbs:7,   kcal:28   },
+  { name:'Какао на молоке',         emoji:'☕', carbs:11,  kcal:64   },
+  { name:'Кофе с молоком',          emoji:'☕', carbs:5,   kcal:37   },
+  { name:'Энергетик',               emoji:'⚡', carbs:11,  kcal:45   },
+
+  // СЛАДКОЕ И ВЫПЕЧКА
+  { name:'Шоколад молочный',        emoji:'🍫', carbs:55,  kcal:544  },
+  { name:'Шоколад тёмный 70%',      emoji:'🍫', carbs:43,  kcal:598  },
+  { name:'Шоколад белый',           emoji:'🍫', carbs:59,  kcal:554  },
+  { name:'Конфеты карамель',        emoji:'🍬', carbs:92,  kcal:371  },
+  { name:'Конфеты шоколадные',      emoji:'🍫', carbs:55,  kcal:500  },
+  { name:'Мармелад',                emoji:'🍬', carbs:79,  kcal:321  },
+  { name:'Зефир',                   emoji:'🍬', carbs:79,  kcal:304  },
+  { name:'Пастила',                 emoji:'🍬', carbs:80,  kcal:310  },
+  { name:'Вафли',                   emoji:'🧇', carbs:64,  kcal:430  },
+  { name:'Печенье сахарное',        emoji:'🍪', carbs:70,  kcal:417  },
+  { name:'Печенье овсяное',         emoji:'🍪', carbs:67,  kcal:437  },
+  { name:'Пряник',                  emoji:'🍪', carbs:77,  kcal:336  },
+  { name:'Торт бисквитный',         emoji:'🎂', carbs:50,  kcal:350  },
+  { name:'Торт наполеон',           emoji:'🎂', carbs:39,  kcal:407  },
+  { name:'Пирожное эклер',          emoji:'🧁', carbs:43,  kcal:330  },
+  { name:'Кекс',                    emoji:'🧁', carbs:55,  kcal:430  },
+  { name:'Пирог с ягодами',         emoji:'🥧', carbs:38,  kcal:230  },
+  { name:'Блины',                   emoji:'🫓', carbs:34,  kcal:233  },
+  { name:'Оладьи',                  emoji:'🫓', carbs:34,  kcal:230  },
+  { name:'Сырники',                 emoji:'🫓', carbs:18,  kcal:220  },
+  { name:'Пончик',                  emoji:'🍩', carbs:48,  kcal:407  },
+  { name:'Мёд',                     emoji:'🍯', carbs:82,  kcal:329  },
+  { name:'Варенье',                 emoji:'🍯', carbs:70,  kcal:285  },
+  { name:'Джем',                    emoji:'🍯', carbs:65,  kcal:268  },
+  { name:'Сахар',                   emoji:'🧂', carbs:100, kcal:387  },
+
+  // ГОТОВЫЕ БЛЮДА
+  { name:'Борщ',                    emoji:'🍲', carbs:5,   kcal:50   },
+  { name:'Щи',                      emoji:'🍲', carbs:4,   kcal:35   },
+  { name:'Суп куриный с лапшой',    emoji:'🍲', carbs:8,   kcal:55   },
+  { name:'Суп гороховый',           emoji:'🍲', carbs:11,  kcal:66   },
+  { name:'Окрошка',                 emoji:'🍲', carbs:4,   kcal:34   },
+  { name:'Пельмени',                emoji:'🥟', carbs:29,  kcal:275  },
+  { name:'Вареники с картофелем',   emoji:'🥟', carbs:29,  kcal:195  },
+  { name:'Вареники с вишней',       emoji:'🥟', carbs:33,  kcal:210  },
+  { name:'Манты',                   emoji:'🥟', carbs:25,  kcal:220  },
+  { name:'Хинкали',                 emoji:'🥟', carbs:26,  kcal:210  },
+  { name:'Пицца Маргарита',         emoji:'🍕', carbs:28,  kcal:250  },
+  { name:'Пицца с мясом',           emoji:'🍕', carbs:25,  kcal:290  },
+  { name:'Бургер',                  emoji:'🍔', carbs:29,  kcal:295  },
+  { name:'Хот-дог',                 emoji:'🌭', carbs:25,  kcal:290  },
+  { name:'Шаурма',                  emoji:'🌯', carbs:23,  kcal:250  },
+  { name:'Роллы/суши (1 шт.)',      emoji:'🍣', carbs:10,  kcal:50   },
+  { name:'Плов',                    emoji:'🍚', carbs:22,  kcal:190  },
+  { name:'Лагман',                  emoji:'🍜', carbs:18,  kcal:130  },
+  { name:'Голубцы',                 emoji:'🥬', carbs:9,   kcal:95   },
+  { name:'Котлета жареная',         emoji:'🍖', carbs:8,   kcal:248  },
+  { name:'Омлет',                   emoji:'🍳', carbs:2,   kcal:184  },
+  { name:'Яйцо варёное',            emoji:'🥚', carbs:0.7, kcal:155  },
+  { name:'Каша молочная рисовая',   emoji:'🥣', carbs:18,  kcal:97   },
+  { name:'Каша молочная манная',    emoji:'🥣', carbs:16,  kcal:80   },
+  { name:'Каша молочная овсяная',   emoji:'🥣', carbs:13,  kcal:74   },
+
+  // СНЕКИ И ПРОЧЕЕ
+  { name:'Попкорн',                 emoji:'🍿', carbs:55,  kcal:382  },
+  { name:'Сухарики',                emoji:'🍞', carbs:70,  kcal:347  },
+  { name:'Крекеры',                 emoji:'🍘', carbs:63,  kcal:408  },
+  { name:'Орехи грецкие',           emoji:'🥜', carbs:14,  kcal:654  },
+  { name:'Арахис',                  emoji:'🥜', carbs:16,  kcal:567  },
+  { name:'Семечки подсолнечника',   emoji:'🌻', carbs:5,   kcal:584  },
+  { name:'Кетчуп (1 ст.л.)',        emoji:'🍅', carbs:5,   kcal:29   },
+  { name:'Майонез (1 ст.л.)',       emoji:'🫙', carbs:2,   kcal:300  },
+
+  // УЗБЕКСКИЕ БЛЮДА
+  { name:'Плов (узбекский)',         emoji:'🍚', carbs:24,  kcal:210  },
+  { name:'Шурпа',                   emoji:'🍲', carbs:8,   kcal:65   },
+  { name:'Лагман',                  emoji:'🍜', carbs:22,  kcal:145  },
+  { name:'Мастава',                 emoji:'🍲', carbs:14,  kcal:95   },
+  { name:'Мошхурда',                emoji:'🍲', carbs:18,  kcal:110  },
+  { name:'Шовля',                   emoji:'🍚', carbs:26,  kcal:180  },
+  { name:'Кайнатма шурва',          emoji:'🍲', carbs:6,   kcal:55   },
+  { name:'Думлама',                 emoji:'🍲', carbs:10,  kcal:95   },
+  { name:'Долма (в виноградных листьях)', emoji:'🥬', carbs:12, kcal:130 },
+  { name:'Голубцы фаршированные',   emoji:'🥬', carbs:10,  kcal:115  },
+  { name:'Самса (с мясом)',          emoji:'🥟', carbs:32,  kcal:280  },
+  { name:'Самса (с картофелем)',     emoji:'🥟', carbs:35,  kcal:230  },
+  { name:'Манты (узбекские)',        emoji:'🥟', carbs:26,  kcal:225  },
+  { name:'Чучвара (отварная)',       emoji:'🥟', carbs:24,  kcal:190  },
+  { name:'Чучвара (жареная)',        emoji:'🥟', carbs:28,  kcal:260  },
+  { name:'Нарын',                   emoji:'🍝', carbs:30,  kcal:200  },
+  { name:'Лепёшка нон (1 шт.)',      emoji:'🫓', carbs:52,  kcal:265  },
+  { name:'Лепёшка катлама',         emoji:'🫓', carbs:48,  kcal:340  },
+  { name:'Лепёшка патир',           emoji:'🫓', carbs:50,  kcal:295  },
+  { name:'Ёпма нон',                emoji:'🫓', carbs:54,  kcal:275  },
+  { name:'Казан-кабоб',             emoji:'🍖', carbs:5,   kcal:220  },
+  { name:'Сомса (тандирная)',        emoji:'🥟', carbs:30,  kcal:270  },
+  { name:'Куурдак',                 emoji:'🍖', carbs:7,   kcal:260  },
+  { name:'Машкичири',               emoji:'🍲', carbs:20,  kcal:130  },
+  { name:'Угра (суп с лапшой)',      emoji:'🍜', carbs:18,  kcal:100  },
+  { name:'Жаркоп',                  emoji:'🥘', carbs:12,  kcal:180  },
+  { name:'Дымлама',                 emoji:'🥘', carbs:11,  kcal:105  },
+  { name:'Бешбармак',               emoji:'🍝', carbs:28,  kcal:215  },
+  { name:'Чалоп (айран с овощами)', emoji:'🥛', carbs:5,   kcal:35   },
+  { name:'Сузьма',                  emoji:'🧀', carbs:3,   kcal:85   },
+  { name:'Катык (кислое молоко)',    emoji:'🥛', carbs:4.5, kcal:56   },
+  { name:'Курут (шарик, 1 шт.)',     emoji:'🟡', carbs:8,   kcal:90   },
+  { name:'Нишолда',                 emoji:'🍮', carbs:72,  kcal:290  },
+  { name:'Халва узбекская',         emoji:'🍯', carbs:54,  kcal:510  },
+  { name:'Пахлава',                 emoji:'🍮', carbs:40,  kcal:410  },
+  { name:'Чак-чак',                 emoji:'🍮', carbs:60,  kcal:450  },
+  { name:'Навот (леденцовый сахар)',  emoji:'🍬', carbs:98,  kcal:380  },
+  { name:'Урюк (абрикос сушёный)',   emoji:'🍑', carbs:55,  kcal:215  },
+  { name:'Инжир сушёный',           emoji:'🍑', carbs:63,  kcal:249  },
+  { name:'Кишмиш (изюм)',           emoji:'🍇', carbs:79,  kcal:299  },
+  { name:'Ноут (горох жареный)',     emoji:'🟡', carbs:46,  kcal:364  },
+];
+
+let items = []; // { id, food, grams }
+let searchOpen = false;
+
+function toggleSearch() {
+  searchOpen = !searchOpen;
+  const panel = document.getElementById('search-panel');
+  const btn = document.getElementById('add-btn');
+  if (searchOpen) {
+    panel.classList.add('open');
+    btn.style.display = 'none';
+    setTimeout(() => document.getElementById('search-input').focus(), 50);
+  } else {
+    closeSearch();
+  }
+}
+
+function closeSearch() {
+  searchOpen = false;
+  document.getElementById('search-panel').classList.remove('open');
+  document.getElementById('search-input').value = '';
+  document.getElementById('dropdown').classList.remove('open');
+  document.getElementById('add-btn').style.display = 'flex';
+}
+
+function onSearch(val) {
+  const dd = document.getElementById('dropdown');
+  if (!val.trim()) { dd.classList.remove('open'); return; }
+
+  const q = val.toLowerCase();
+  const results = foods.filter(f => f.name.toLowerCase().includes(q)).slice(0, 7);
+
+  if (!results.length) {
+    dd.innerHTML = `<div class="food-item"><div><div class="food-item-name" style="color:#94a3b8">Ничего не найдено</div></div></div>`;
+    dd.classList.add('open');
+    return;
+  }
+
+  dd.innerHTML = results.map(f => `
+    <div class="food-item" onclick="addFood('${f.name}')">
+      <span class="food-item-emoji">${f.emoji}</span>
+      <div>
+        <div class="food-item-name">${f.name}</div>
+        <div class="food-item-carbs">${f.carbs} г углеводов / 100г</div>
+      </div>
+    </div>
+  `).join('');
+  dd.classList.add('open');
+}
+
+function addFood(name) {
+  const food = foods.find(f => f.name === name);
+  const id = Date.now();
+  items.push({ id, food, grams: 150 });
+  closeSearch();
+  renderFoods();
+  recalc();
+}
+
+function removeFood(id) {
+  items = items.filter(i => i.id !== id);
+  renderFoods();
+  recalc();
+}
+
+function setGrams(id, val) {
+  const item = items.find(i => i.id === id);
+  if (!item) return;
+  item.grams = parseFloat(val) || 0;
+  // update carbs display
+  const carbsEl = document.getElementById('carbs-' + id);
+  if (carbsEl) {
+    const total = (item.food.carbs * item.grams / 100).toFixed(1);
+    carbsEl.innerHTML = `= <b>${total}г</b> углеводов`;
+  }
+  // update quick buttons
+  document.querySelectorAll(`.qg-${id}`).forEach(b => {
+    b.classList.toggle('active', parseInt(b.dataset.val) === item.grams);
+  });
+  recalc();
+}
+
+function setQuickGrams(id, val) {
+  const input = document.getElementById('ginput-' + id);
+  if (input) input.value = val;
+  setGrams(id, val);
+}
+
+function renderFoods() {
+  const list = document.getElementById('food-list');
+  if (!items.length) { list.innerHTML = ''; return; }
+
+  list.innerHTML = items.map(({ id, food, grams }) => {
+    const totalCarbs = (food.carbs * grams / 100).toFixed(1);
+    return `
+    <div class="food-row" id="row-${id}">
+      <div class="food-row-top">
+        <span class="food-row-emoji">${food.emoji}</span>
+        <div class="food-row-info">
+          <div class="food-row-name">${food.name}</div>
+          <div class="food-row-sub">${food.carbs} г угл. · ${food.kcal} ккал / 100г</div>
+        </div>
+        <button class="food-row-delete" onclick="removeFood(${id})">✕</button>
+      </div>
+      <div class="food-row-bottom">
+        <div class="gram-input-row">
+          <input type="number" class="gram-input" id="ginput-${id}"
+            value="${grams}" min="5" max="2000"
+            oninput="setGrams(${id}, this.value)">
+          <span class="gram-unit">г</span>
+          <span class="gram-carbs" id="carbs-${id}">= <b>${totalCarbs}г</b> углеводов</span>
+        </div>
+        <div class="quick-grams">
+          ${[50,100,150,200,300].map(v => `
+            <button class="quick-g qg-${id} ${grams === v ? 'active' : ''}"
+              data-val="${v}" onclick="setQuickGrams(${id}, ${v})">${v}г</button>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  `}).join('');
+}
+
+function recalc() {
+  const resultCard = document.getElementById('result-card');
+  if (!items.length) {
+    resultCard.classList.remove('show');
+    resultCard.innerHTML = `<div class="placeholder"><div class="placeholder-icon">🍽</div>Добавьте продукт</div>`;
+    resultCard.classList.add('show');
+    return;
+  }
+
+  const glucose = parseFloat(document.getElementById('glucose').value) || 5.5;
+  let totalCarbs = 0;
+  let totalKcal = 0;
+
+  items.forEach(({ food, grams }) => {
+    totalCarbs += food.carbs * grams / 100;
+    totalKcal  += food.kcal  * grams / 100;
+  });
+
+  const xe = totalCarbs / 12;
+  const foodDose = xe / profile.icr;
+  const corrDose = (glucose - profile.target) / profile.isf;
+  let total = Math.max(0, foodDose + corrDose);
+  total = Math.round(total * 2) / 2;
+
+  const corrSign = corrDose >= 0 ? '+' : '';
+
+  const breakdown = items.map(({ food, grams }) => {
+    const c = (food.carbs * grams / 100).toFixed(1);
+    const k = Math.round(food.kcal * grams / 100);
+    return `<div class="breakdown-row"><span>${food.emoji} ${food.name} ${grams}г</span><span><b>${c}г · ${k} ккал</b></span></div>`;
+  }).join('');
+
+  resultCard.innerHTML = `
+    <div class="result-label">Доза инсулина (${profile.insulin})</div>
+    <div class="result-dose">${total}</div>
+    <div class="result-unit">единиц</div>
+    <div class="result-kcal">${Math.round(totalKcal)} ккал</div>
+    <div class="result-breakdown">
+      ${breakdown}
+      <div class="breakdown-row" style="margin-top:2px; opacity:1;">
+        <span>Итого углеводов</span><span><b>${totalCarbs.toFixed(1)}г (${xe.toFixed(1)} ХЕ)</b></span>
+      </div>
+      <div class="breakdown-row">
+        <span>На еду (${xe.toFixed(1)} ХЕ × ${(1/profile.icr).toFixed(2)} ед./ХЕ)</span><span><b>${foodDose.toFixed(1)} ед.</b></span>
+      </div>
+      ${Math.abs(corrDose) > 0.05 ? `<div class="breakdown-row">
+        <span>Коррекция глюкозы</span><span><b>${corrSign}${corrDose.toFixed(1)} ед.</b></span>
+      </div>` : ''}
+      <div class="total-row">
+        <span>Итого доза</span><span>${total} ед.</span>
+      </div>
+    </div>
+  `;
+  resultCard.classList.add('show');
+}
+
+function updateBadge() {
+  const v = parseFloat(document.getElementById('glucose').value);
+  const b = document.getElementById('g-badge');
+  if (v < 3.9)      { b.className = 'glucose-badge badge-low';  b.textContent = 'Гипо!'; }
+  else if (v > 7.8) { b.className = 'glucose-badge badge-high'; b.textContent = 'Высокая'; }
+  else              { b.className = 'glucose-badge badge-ok';   b.textContent = 'Норма'; }
+}
+
+document.addEventListener('click', e => {
+  if (searchOpen && !e.target.closest('.add-food-block')) {
+    closeSearch();
+  }
+});
+
+// ── Инициализация ─────────────────────────────────────────────
+(function init() {
+  const hasProfile = loadProfile();
+  if (hasProfile) {
+    document.getElementById('onboarding').classList.add('hidden');
+    applyProfileToForm();
+  }
+  // иначе онбординг показывается по умолчанию
+})();
+</script>
+</body>
+</html>
